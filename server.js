@@ -59,7 +59,7 @@ const app = express()
 // CORS configuration
 app.use(
   cors({
-    origin: ["http://localhost:3000","https://half-attire-frontend-1.vercel.app"],
+    origin: ["http://localhost:3000","https://half-attire-frontend-1.vercel.app","https://www.halfattire.com"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
