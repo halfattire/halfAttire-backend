@@ -4,9 +4,12 @@ import {
   getAllUserOrders,
   getAllSellerOrders,
   updateOrderStatus,
-  orderRefund,shopRefundOrders
+  orderRefund,shopRefundOrders,
+  adminAllOrders,
+  adminOrderDetails,
+  adminUpdateOrderStatus
 } from "../controller/orderController.js";
-import { isSeller } from "../middleware/auth.js";
+import { isAdmin, isAuthenticated, isSeller } from "../middleware/auth.js";
 
 const orderRouter = express.Router();
 
@@ -16,5 +19,9 @@ orderRouter.get("/get-seller-all-orders/:shopId", getAllSellerOrders);
 orderRouter.put("/update-order-status/:id", isSeller, updateOrderStatus);
 orderRouter.put("/order-refund/:id", orderRefund);
 orderRouter.put("/order-refund-success/:id", isSeller,shopRefundOrders);
+// Admin routes
+orderRouter.get("/admin-all-orders", isAuthenticated, isAdmin, adminAllOrders);
+orderRouter.get("/admin/order/:id", isAuthenticated, isAdmin, adminOrderDetails)
+orderRouter.put("/admin/order/:id", isAuthenticated, isAdmin, adminUpdateOrderStatus)
 
 export default orderRouter;

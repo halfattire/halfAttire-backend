@@ -1,5 +1,6 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
 
+// Keep original schema, just add optional fields
 const productSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -21,12 +22,43 @@ const productSchema = new mongoose.Schema({
   },
   discountPrice: {
     type: Number,
-    required: [true, "Please enter your product price!"],
+    required: function () {
+      return !this.isVariableProduct
+    },
+    validate: {
+      validator: function (value) {
+        if (this.isVariableProduct) return true
+        return value != null && value > 0
+      },
+      message: "Please enter your product price!",
+    },
   },
   stock: {
     type: Number,
-    required: [true, "Please enter your product stock!"],
+    required: function () {
+      return !this.isVariableProduct
+    },
+    validate: {
+      validator: function (value) {
+        if (this.isVariableProduct) return true
+        return value != null && value >= 0
+      },
+      message: "Please enter your product stock!",
+    },
   },
+  // NEW: Optional fields for variations - minimal addition
+  isVariableProduct: {
+    type: Boolean,
+    default: false,
+  },
+  variations: [
+    {
+      size: String,
+      color: String,
+      price: { type: Number, required: true },
+      stock: { type: Number, required: true, min: 0 },
+    },
+  ],
   images: [{ type: String }],
   reviews: [
     {
@@ -67,7 +99,7 @@ const productSchema = new mongoose.Schema({
     type: Date,
     default: Date.now(),
   },
-});
+})
 
-const productModel = mongoose.model("product", productSchema);
-export default productModel;
+const productModel = mongoose.model("product", productSchema)
+export default productModel

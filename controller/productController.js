@@ -3,50 +3,24 @@ import orderModel from "../model/orderModel.js"
 import productModel from "../model/productModel.js"
 import shopModel from "../model/shopModel.js"
 import ErrorHandler from "../utils/ErrorHandler.js"
-import { cloudinary, isCloudinaryConfigured } from "../server.js"
+import fs from "fs";
+import path from "path";
+import { promisify } from "util";
 
-// Modified to use Cloudinary instead of multer
+const unlinkAsync = promisify(fs.unlink);
+
+// Minimal changes to existing createProduct function
 export const createProduct = catchAsyncErrors(async (req, res, next) => {
   try {
-    console.log("Create product request body:", req.body)
-    const { shopId, images } = req.body
-
+    const { shopId } = req.body
     const shop = await shopModel.findById(shopId)
 
     if (!shop) {
       return next(new ErrorHandler("Invalid shop Id", 400))
     }
 
-    // Check if Cloudinary is configured
-    if (!isCloudinaryConfigured()) {
-      return next(new ErrorHandler("Image upload service not configured", 503))
-    }
-
-    // Check if images are provided
-    if (!images || !Array.isArray(images) || images.length === 0) {
-      return next(new ErrorHandler("Product images are required", 400))
-    }
-
-    // Upload images to Cloudinary
-    const imageUrls = []
-    try {
-      console.log(`Uploading ${images.length} product images to Cloudinary...`)
-
-      for (const image of images) {
-        const result = await cloudinary.uploader.upload(image, {
-          folder: "products",
-          width: 800,
-          crop: "scale",
-          quality: "auto",
-        })
-        imageUrls.push(result.secure_url)
-      }
-
-      console.log(`Successfully uploaded ${imageUrls.length} product images`)
-    } catch (uploadError) {
-      console.error("Cloudinary upload error:", uploadError)
-      return next(new ErrorHandler(`Failed to upload product images: ${uploadError.message}`, 500))
-    }
+    const files = req.files
+    const imageUrls = files.map((file) => `${file.filename}`)
 
     const productData = {
       ...req.body,
@@ -65,9 +39,48 @@ export const createProduct = catchAsyncErrors(async (req, res, next) => {
       },
     }
 
-    console.log("Creating product with data:", productData)
+    // Handle variable products
+    if (req.body.isVariableProduct === "true") {
+      productData.isVariableProduct = true
+
+      if (req.body.variations) {
+        try {
+          const variations = JSON.parse(req.body.variations)
+
+          // Validate variations
+          if (!Array.isArray(variations) || variations.length === 0) {
+            return next(new ErrorHandler("Variable products must have at least one variation", 400))
+          }
+
+          // Validate each variation
+          for (const variation of variations) {
+            if (!variation.price || variation.price <= 0) {
+              return next(new ErrorHandler("Each variation must have a valid price", 400))
+            }
+            if (variation.stock === undefined || variation.stock < 0) {
+              return next(new ErrorHandler("Each variation must have a valid stock quantity", 400))
+            }
+          }
+
+          productData.variations = variations
+        } catch (error) {
+          return next(new ErrorHandler("Invalid variations data", 400))
+        }
+      } else {
+        return next(new ErrorHandler("Variable products must have variations", 400))
+      }
+    } else {
+      productData.isVariableProduct = false
+      // For simple products, ensure required fields are present
+      if (!productData.discountPrice || productData.discountPrice <= 0) {
+        return next(new ErrorHandler("Please enter your product price!", 400))
+      }
+      if (productData.stock === undefined || productData.stock < 0) {
+        return next(new ErrorHandler("Please enter your product stock!", 400))
+      }
+    }
+
     const product = await productModel.create(productData)
-    console.log("Product created successfully:", product._id)
 
     res.status(201).json({
       success: true,
@@ -79,7 +92,7 @@ export const createProduct = catchAsyncErrors(async (req, res, next) => {
   }
 })
 
-// get all shop products
+// Keep all other existing functions unchanged
 export const getAllShopProducts = catchAsyncErrors(async (req, res, next) => {
   try {
     const products = await productModel.find({ shopId: req.params.id })
@@ -92,48 +105,70 @@ export const getAllShopProducts = catchAsyncErrors(async (req, res, next) => {
   }
 })
 
-// delete product route
+
+
+
+
+
 export const deleteShopProduct = catchAsyncErrors(async (req, res, next) => {
   try {
-    const productId = req.params.id
-    const product = await productModel.findById(productId)
+    const productId = req.params.id;
+
+    // console.log(`Attempting to delete product with ID: ${productId}`);
+
+    const product = await productModel.findById(productId);
 
     if (!product) {
-      return next(new ErrorHandler("Product not found", 400))
+      return next(new ErrorHandler("Product not found", 400));
     }
 
-    // Delete product images from Cloudinary if they exist
-    if (product.images && product.images.length > 0) {
-      for (const imageUrl of product.images) {
-        if (imageUrl && imageUrl.includes("cloudinary.com")) {
-          try {
-            // Extract public_id from URL
-            const urlParts = imageUrl.split("/")
-            const publicIdWithExtension = urlParts[urlParts.length - 1]
-            const publicId = `products/${publicIdWithExtension.split(".")[0]}`
+    // Delete associated images from uploads folder
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    console.log(`Uploads directory: ${uploadsDir}`);
 
-            console.log("Deleting product image with public_id:", publicId)
-            await cloudinary.uploader.destroy(publicId)
-          } catch (deleteError) {
-            console.log("Could not delete product image (continuing anyway):", deleteError.message)
-            // Don't fail the request if image deletion fails
+    if (fs.existsSync(uploadsDir)) {
+      if (product.images && product.images.length > 0) {
+        for (const image of product.images) {
+          const filePath = path.join(uploadsDir, image);
+          console.log(`Checking file: ${filePath}`);
+          if (fs.existsSync(filePath)) {
+            await unlinkAsync(filePath);
+            console.log(`Successfully deleted file: ${filePath}`);
+          } else {
+            console.log(`File not found: ${filePath}`);
           }
         }
+      } else {
+        console.log("No images to delete for this product");
       }
+    } else {
+      console.log("Uploads directory does not exist");
     }
 
-    await productModel.findByIdAndDelete(productId)
+    // Delete the product from the database
+    const deletedProduct = await productModel.findByIdAndDelete(productId);
+    if (!deletedProduct) {
+      throw new Error("Failed to delete product from database");
+    }
+
+    // console.log(`Product ${productId} deleted from database`);
 
     res.status(200).json({
       success: true,
       message: "Product deleted successfully",
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 400))
+    console.error(`Error in deleteShopProduct: ${error.message}`, error.stack);
+    return next(new ErrorHandler(`Failed to delete product: ${error.message}`, 400));
   }
-})
+});
 
-// get all products
+
+
+
+
+
+
 export const getAllProducts = catchAsyncErrors(async (req, res, next) => {
   try {
     const products = await productModel.find().sort({ createdAt: -1 })
@@ -147,7 +182,6 @@ export const getAllProducts = catchAsyncErrors(async (req, res, next) => {
   }
 })
 
-// review for a product
 export const createReview = catchAsyncErrors(async (req, res, next) => {
   try {
     const { user, rating, comment, productId, orderId } = req.body
@@ -197,3 +231,19 @@ export const createReview = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler(error, 400))
   }
 })
+
+
+// Get all products (Admin)
+export const adminAllProducts = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const products = await productModel.find().sort({
+      createdAt: -1,
+    });
+    res.status(200).json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 500));
+  }
+});

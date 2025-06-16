@@ -1,12 +1,30 @@
-import express from "express"
-import { createEvent, deleteEvent, getAllEvents, getAllShopEvents } from "../controller/eventController.js"
-import { isSeller } from "../middleware/auth.js"
+import express from "express";
+import multer from "multer";
+import {
+  createEvent,
+  getAllShopEvents,
+  deleteEvent,
+  getAllEvents,
+  adminAllEvents,
+} from "../controller/eventController.js";
+import { isAdmin, isAuthenticated, isSeller } from "../middleware/auth.js";
 
-const router = express.Router()
+const eventRouter = express.Router();
 
-router.post("/create-event", isSeller, createEvent)
-router.get("/get-all-shop-events/:id", getAllShopEvents)
-router.delete("/delete-shop-event/:id", isSeller, deleteEvent)
-router.get("/get-all-events", getAllEvents)
+// image upload engine
+const storage = multer.diskStorage({
+  destination: "uploads",
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}${file.originalname}`);
+  },
+});
+const upload = multer({ storage: storage });
 
-export default router
+// event routes
+eventRouter.post("/create-event", upload.array("images"), createEvent);
+eventRouter.get("/get-all-shop-events/:id", getAllShopEvents);
+eventRouter.delete("/delete-shop-event/:id", isSeller, deleteEvent);
+eventRouter.get("/get-all-events/", getAllEvents);
+// Admin routes
+eventRouter.get("/admin-all-events", isAuthenticated, isAdmin, adminAllEvents);
+export default eventRouter;

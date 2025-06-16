@@ -13,9 +13,9 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
       ? req.headers.authorization.split(" ")[1]
       : null)
 
-  console.log("Auth middleware - Cookies:", req.cookies)
-  console.log("Auth middleware - Token:", token ? "Present" : "Missing")
-  console.log("Auth middleware - Headers:", req.headers.authorization)
+  // console.log("Auth middleware - Cookies:", req.cookies)
+  // console.log("Auth middleware - Token:", token ? "Present" : "Missing")
+  // console.log("Auth middleware - Headers:", req.headers.authorization)
 
   if (!token) {
     return next(new ErrorHandler("Please login to access this resource", 401))
@@ -24,7 +24,7 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
   let decoded
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_KEY)
-    console.log("Token decoded successfully, user ID:", decoded.id)
+    // console.log("Token decoded successfully, user ID:", decoded.id)
   } catch (jwtError) {
     console.error("JWT verification error:", jwtError.message)
     return next(new ErrorHandler("Invalid or expired token", 401))
@@ -37,7 +37,7 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("User not found", 404))
   }
 
-  console.log("User authenticated successfully:", user.email)
+  // console.log("User authenticated successfully:", user.email)
   req.user = user
 
   next()

@@ -13,8 +13,10 @@ import {
   getUserInfo,
   sendContactForm,
   googleAuth,
+  adminAllUsers,
+  adminDeleteUser,
 } from "../controller/userController.js"
-import { isAuthenticated } from "../middleware/auth.js"
+import { isAdmin, isAuthenticated } from "../middleware/auth.js"
 
 const userRouter = express.Router()
 
@@ -32,5 +34,8 @@ userRouter.delete("/delete-user-address/:id", isAuthenticated, deleteUserAddress
 userRouter.put("/update-user-password", isAuthenticated, updateUserPassword)
 userRouter.get("/user-info/:id", getUserInfo)
 userRouter.post("/send-email", sendContactForm)
+// Admin routes
+userRouter.get("/admin-all-users", isAuthenticated, isAdmin, adminAllUsers);
+userRouter.delete("/admin-delete-user/:id", isAuthenticated, isAdmin, adminDeleteUser);
 
 export default userRouter

@@ -23,16 +23,6 @@ if (process.env.NODE_ENV !== "PRODUCTION") {
   })
 }
 
-console.log("=== Server Configuration ===")
-console.log("NODE_ENV:", process.env.NODE_ENV)
-console.log("PORT:", process.env.PORT)
-
-// Cloudinary Configuration Check
-console.log("=== Cloudinary Configuration ===")
-console.log("CLOUDINARY_CLOUD_NAME:", process.env.CLOUDINARY_CLOUD_NAME ? "✅ Set" : "❌ Missing")
-console.log("CLOUDINARY_API_KEY:", process.env.CLOUDINARY_API_KEY ? "✅ Set" : "❌ Missing")
-console.log("CLOUDINARY_API_SECRET:", process.env.CLOUDINARY_API_SECRET ? "✅ Set" : "❌ Missing")
-
 // Configure Cloudinary
 let cloudinaryConfigured = false
 try {
@@ -52,17 +42,6 @@ try {
   console.error("❌ Cloudinary configuration error:", error.message)
 }
 
-// Test Cloudinary connection
-if (cloudinaryConfigured) {
-  cloudinary.api
-    .ping()
-    .then((result) => {
-      console.log("✅ Cloudinary connection test successful:", result.status)
-    })
-    .catch((error) => {
-      console.error("❌ Cloudinary connection test failed:", error.message)
-    })
-}
 
 // Export cloudinary and helper function for use in other files
 export { cloudinary }
@@ -99,9 +78,9 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Credentials", "true")
 
   // Log only API requests to reduce noise
-  if (req.path.includes("/api/")) {
-    console.log(`${req.method} ${req.path} - Cookies:`, Object.keys(req.cookies || {}))
-  }
+  // if (req.path.includes("/api/")) {
+  //   console.log(`${req.method} ${req.path} - Cookies:`, Object.keys(req.cookies || {}))
+  // }
 
   next()
 })
@@ -127,53 +106,6 @@ app.get("/health", (req, res) => {
     },
   })
 })
-
-// Cloudinary test endpoint
-app.get("/api/test/cloudinary", (req, res) => {
-  res.json({
-    configured: isCloudinaryConfigured(),
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? "✅ Set" : "❌ Missing",
-    api_key: process.env.CLOUDINARY_API_KEY ? "✅ Set" : "❌ Missing",
-    api_secret: process.env.CLOUDINARY_API_SECRET ? "✅ Set" : "❌ Missing",
-    message: isCloudinaryConfigured() ? "Cloudinary is properly configured" : "Cloudinary configuration is incomplete",
-  })
-})
-
-// Test upload endpoint
-app.post("/api/upload", async (req, res) => {
-  try {
-    const { image } = req.body
-
-    if (!image) {
-      return res.status(400).json({ message: "No image provided" })
-    }
-
-    if (!isCloudinaryConfigured()) {
-      return res.status(503).json({
-        success: false,
-        message: "Cloudinary not configured",
-      })
-    }
-
-    const result = await cloudinary.uploader.upload(image, {
-      folder: "ecommerce",
-    })
-
-    res.status(200).json({
-      success: true,
-      message: "Image uploaded successfully",
-      data: result,
-    })
-  } catch (error) {
-    console.error("Cloudinary upload error:", error)
-    res.status(500).json({
-      success: false,
-      message: "Image upload failed",
-      error: error.message,
-    })
-  }
-})
-
 // API routes
 app.use("/api/user", userRouter)
 app.use("/api/shop", shopRouter)
@@ -208,9 +140,6 @@ process.on("unhandledRejection", (err) => {
 const PORT = process.env.PORT || 8000
 app.listen(PORT, () => {
   console.log("=== Server Started Successfully ===")
-  console.log(`🚀 Server is running on http://localhost:${PORT}`)
-  console.log(`📊 Health check: http://localhost:${PORT}/health`)
-  console.log(`🔧 Cloudinary test: http://localhost:${PORT}/api/test/cloudinary`)
 })
 
 export default app
