@@ -122,7 +122,7 @@ export const createUser = async (req, res, next) => {
     }
 
     const activationToken = createActivationToken(user)
-    const activationUrl = `${process.env.FRONTEND_BASE_URL || "http://localhost:3000"}/activation/${activationToken}`
+    const activationUrl = `${process.env.FRONTEND_BASE_URL || "https://www.halfattire.com"}/activation/${activationToken}`
 
     try {
       await sendMail({
