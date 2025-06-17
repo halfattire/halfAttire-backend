@@ -292,6 +292,7 @@ export const updateUserAvatar = catchAsyncErrors(async (req, res, next) => {
     const { avatar } = req.body
 
     if (!avatar) {
+      
       console.error("No avatar provided in request")
       return next(new ErrorHandler("Please provide an image", 400))
     }
