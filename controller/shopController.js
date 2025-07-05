@@ -4,14 +4,12 @@ import ErrorHandler from "../utils/ErrorHandler.js";
 import sendMail from "../utils/sendMail.js";
 import jwt from "jsonwebtoken";
 import sendShopToken from "../utils/ShopToken.js";
-import path from "path";
-import fs from "fs";  
+import { cloudinary, isCloudinaryConfigured } from "../server.js";
 
-
-// Modified to fix the token issue
+// Modified to use Cloudinary instead of Multer
 export const createShop = catchAsyncErrors(async (req, res, next) => {
   try {
-    const { name, email, password, phoneNumber, address, zipCode } = req.body
+    const { name, email, password, phoneNumber, address, zipCode, avatar } = req.body
 
     // Check if user with the provided email already exists
     const shopEmail = await shopModel.findOne({ email })
@@ -19,12 +17,24 @@ export const createShop = catchAsyncErrors(async (req, res, next) => {
       return next(new ErrorHandler("User already exists", 400))
     }
 
-    // Check if file is provided
-    if (!req.file) {
-      return next(new ErrorHandler("Avatar file is required", 400))
+    // Handle avatar upload to Cloudinary
+    let avatarUrl = "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg"
+    
+    if (avatar && isCloudinaryConfigured()) {
+      try {
+        const result = await cloudinary.uploader.upload(avatar, {
+          folder: "shop-avatars",
+          resource_type: "auto",
+          quality: "auto",
+          fetch_format: "auto",
+        });
+        avatarUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error("Cloudinary upload error:", uploadError);
+        return next(new ErrorHandler("Failed to upload avatar", 500));
+      }
     }
 
-    const image_filename = `${req.file.filename}`
     const seller = {
       name,
       email,
@@ -32,12 +42,12 @@ export const createShop = catchAsyncErrors(async (req, res, next) => {
       phoneNumber,
       address,
       zipCode,
-      avatar: image_filename,
+      avatar: avatarUrl,
     }
 
     const activationToken = createActivationToken(seller)
 
-    const activationUrl = `https://www.halfattire.com/seller/activation/${activationToken}`
+    const activationUrl = `${process.env.FRONTEND_BASE_URL || "https://www.halfattire.com"}/seller/activation/${activationToken}`
 
     try {
       await sendMail({
@@ -61,14 +71,17 @@ export const createShop = catchAsyncErrors(async (req, res, next) => {
 // create activationtoken
 const createActivationToken = (seller) => {
   return jwt.sign(seller, process.env.ACTIVATION_SECRET, {
-    expiresIn: "5m",
+    expiresIn: "30m", // Increased from 5m to 30m for better user experience
   })
 }
 
 // activate shop - FIXED with better error handling
 export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
   try {
+    console.log("=== Shop Activation Request ===")
     const { activation_token } = req.body
+    console.log("Activation token received:", !!activation_token)
+    
     if (!activation_token) {
       console.error("No activation token provided")
       return next(new ErrorHandler("Activation token is required", 400))
@@ -77,6 +90,7 @@ export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
     let seller
     try {
       seller = jwt.verify(activation_token, process.env.ACTIVATION_SECRET)
+      console.log("JWT verified successfully for seller:", seller.email)
     } catch (jwtError) {
       console.error("JWT Verification Error:", jwtError.message)
       return next(new ErrorHandler("Invalid or expired activation token", 400))
@@ -92,7 +106,11 @@ export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
     // Check if seller already exists
     const existingSeller = await shopModel.findOne({ email })
     if (existingSeller) {
-      return next(new ErrorHandler("Seller already exists", 400))
+      console.log("Seller already exists, sending success response")
+      return res.status(200).json({
+        success: true,
+        message: "Seller account already activated",
+      })
     }
 
     try {
@@ -110,6 +128,8 @@ export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
 
       // Save the seller to the database
       await newSeller.save()
+      console.log("New seller created successfully:", newSeller.email)
+      
       // Send the token
       sendShopToken(newSeller, 201, res)
     } catch (dbError) {
@@ -240,16 +260,31 @@ export const updateShopAvatar = catchAsyncErrors(async (req, res, next) => {
       return next(new ErrorHandler("User not found!", 404));
     }
 
-    const existAvatarPath = path.join("uploads", existSeller.avatar);
+    const { avatar } = req.body;
 
-    // Remove existing avatar if it exists
-    if (fs.existsSync(existAvatarPath)) {
-      fs.unlinkSync(existAvatarPath);
+    if (!avatar) {
+      return next(new ErrorHandler("Avatar is required", 400));
     }
 
-    const fileUrl = req.file.filename;
+    let avatarUrl = existSeller.avatar;
 
-    existSeller.avatar = fileUrl;
+    // Handle avatar upload to Cloudinary
+    if (avatar && isCloudinaryConfigured()) {
+      try {
+        const result = await cloudinary.uploader.upload(avatar, {
+          folder: "shop-avatars",
+          resource_type: "auto",
+          quality: "auto",
+          fetch_format: "auto",
+        });
+        avatarUrl = result.secure_url;
+      } catch (uploadError) {
+        console.error("Cloudinary upload error:", uploadError);
+        return next(new ErrorHandler("Failed to upload avatar", 500));
+      }
+    }
+
+    existSeller.avatar = avatarUrl;
     await existSeller.save();
 
     res.status(200).json({

@@ -1,27 +1,39 @@
 import catchAsyncErrors from "../middleware/catchAsyncErrors.js";
 import messageModel from "../model/messagesModel.js";
 import ErrorHandler from "../utils/ErrorHandler.js";
+import { cloudinary, isCloudinaryConfigured } from "../server.js";
 
 export const createNewMessage = catchAsyncErrors(async (req, res, next) => {
   try {
-    const messageData = req.body;
+    const { conversationId, sender, text, images } = req.body;
 
-    if (req.files) {
-      const files = req.files;
-      const imageUrls = files.map((file) => `${file.fileName}`);
+    let imageUrls = [];
 
-      messageData.images = imageUrls;
+    // Handle image uploads to Cloudinary
+    if (images && images.length > 0 && isCloudinaryConfigured()) {
+      try {
+        const uploadPromises = images.map(async (image) => {
+          const result = await cloudinary.uploader.upload(image, {
+            folder: "messages",
+            resource_type: "auto",
+            quality: "auto",
+            fetch_format: "auto",
+          });
+          return result.secure_url;
+        });
+        
+        imageUrls = await Promise.all(uploadPromises);
+      } catch (uploadError) {
+        console.error("Cloudinary upload error:", uploadError);
+        return next(new ErrorHandler("Failed to upload images", 500));
+      }
     }
 
-    messageData.conversationId = req.body.conversationId;
-    messageData.sender = req.body.sender;
-    messageData.text = req.body.text;
-
     const message = new messageModel({
-      conversationId: messageData.conversationId,
-      text: messageData.text,
-      sender: messageData.sender,
-      images: messageData.images ? messageData.images : undefined,
+      conversationId,
+      text,
+      sender,
+      images: imageUrls.length > 0 ? imageUrls : undefined,
     });
 
     await message.save();
@@ -31,7 +43,7 @@ export const createNewMessage = catchAsyncErrors(async (req, res, next) => {
       message,
     });
   } catch (error) {
-    return next(new ErrorHandler(error.message), 500);
+    return next(new ErrorHandler(error.message, 500));
   }
 });
 

@@ -71,12 +71,6 @@ app.use((req, res, next) => {
   res.header("Cross-Origin-Opener-Policy", "unsafe-none")
   res.header("Cross-Origin-Embedder-Policy", "unsafe-none")
   res.header("Access-Control-Allow-Credentials", "true")
-
-  // Log only API requests to reduce noise
-  // if (req.path.includes("/api/")) {
-  //   console.log(`${req.method} ${req.path} - Cookies:`, Object.keys(req.cookies || {}))
-  // }
-
   next()
 })
 

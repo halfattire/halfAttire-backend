@@ -3,24 +3,39 @@ import orderModel from "../model/orderModel.js"
 import productModel from "../model/productModel.js"
 import shopModel from "../model/shopModel.js"
 import ErrorHandler from "../utils/ErrorHandler.js"
-import fs from "fs";
-import path from "path";
-import { promisify } from "util";
+import { cloudinary, isCloudinaryConfigured } from "../server.js"
 
-const unlinkAsync = promisify(fs.unlink);
-
-// Minimal changes to existing createProduct function
+// Updated createProduct function to use Cloudinary
 export const createProduct = catchAsyncErrors(async (req, res, next) => {
   try {
-    const { shopId } = req.body
+    const { shopId, images } = req.body
     const shop = await shopModel.findById(shopId)
 
     if (!shop) {
       return next(new ErrorHandler("Invalid shop Id", 400))
     }
 
-    const files = req.files
-    const imageUrls = files.map((file) => `${file.filename}`)
+    let imageUrls = []
+
+    // Handle image uploads to Cloudinary
+    if (images && images.length > 0 && isCloudinaryConfigured()) {
+      try {
+        const uploadPromises = images.map(async (image) => {
+          const result = await cloudinary.uploader.upload(image, {
+            folder: "products",
+            resource_type: "auto",
+            quality: "auto",
+            fetch_format: "auto",
+          });
+          return result.secure_url;
+        });
+        
+        imageUrls = await Promise.all(uploadPromises);
+      } catch (uploadError) {
+        console.error("Cloudinary upload error:", uploadError);
+        return next(new ErrorHandler("Failed to upload images", 500));
+      }
+    }
 
     const productData = {
       ...req.body,
@@ -114,35 +129,10 @@ export const deleteShopProduct = catchAsyncErrors(async (req, res, next) => {
   try {
     const productId = req.params.id;
 
-    // console.log(`Attempting to delete product with ID: ${productId}`);
-
     const product = await productModel.findById(productId);
 
     if (!product) {
       return next(new ErrorHandler("Product not found", 400));
-    }
-
-    // Delete associated images from uploads folder
-    const uploadsDir = path.join(process.cwd(), "uploads");
-    console.log(`Uploads directory: ${uploadsDir}`);
-
-    if (fs.existsSync(uploadsDir)) {
-      if (product.images && product.images.length > 0) {
-        for (const image of product.images) {
-          const filePath = path.join(uploadsDir, image);
-          console.log(`Checking file: ${filePath}`);
-          if (fs.existsSync(filePath)) {
-            await unlinkAsync(filePath);
-            console.log(`Successfully deleted file: ${filePath}`);
-          } else {
-            console.log(`File not found: ${filePath}`);
-          }
-        }
-      } else {
-        console.log("No images to delete for this product");
-      }
-    } else {
-      console.log("Uploads directory does not exist");
     }
 
     // Delete the product from the database
@@ -150,8 +140,6 @@ export const deleteShopProduct = catchAsyncErrors(async (req, res, next) => {
     if (!deletedProduct) {
       throw new Error("Failed to delete product from database");
     }
-
-    // console.log(`Product ${productId} deleted from database`);
 
     res.status(200).json({
       success: true,
