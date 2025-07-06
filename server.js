@@ -14,6 +14,7 @@ import paymentRouter from "./routes/paymentRoute.js"
 import orderRouter from "./routes/orderRoute.js"
 import conversationRouter from "./routes/conversationRoute.js"
 import messageRouter from "./routes/messagesRoute.js"
+import newsletterRouter from "./routes/newsletterRoute.js"
 import { v2 as cloudinary } from "cloudinary"
 
 // Load environment variables first
@@ -105,6 +106,7 @@ app.use("/api/payment", paymentRouter)
 app.use("/api/order", orderRouter)
 app.use("/api/conversation", conversationRouter)
 app.use("/api/message", messageRouter)
+app.use("/api/newsletter", newsletterRouter)
 
 // Error handling middleware
 app.use(errorHandlerMiddleware)
