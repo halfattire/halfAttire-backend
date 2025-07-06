@@ -39,7 +39,14 @@ export const createEvent = catchAsyncErrors(async (req, res, next) => {
     const eventData = {
       ...req.body,
       images: imageUrls,
-      shop: shop._id,
+      shopId: shop._id,
+      shop: {
+        _id: shop._id,
+        name: shop.name,
+        email: shop.email,
+        address: shop.address,
+        avatar: shop.avatar
+      },
     };
 
     const event = await eventModel.create(eventData);
@@ -109,25 +116,63 @@ export const deleteEvent = catchAsyncErrors(async (req, res, next) => {
 // get all events
 export const getAllEvents = catchAsyncErrors(async (req, res, next) => {
   try {
-    const events = await eventModel.find();
+    console.log("getAllEvents: Starting request...");
+    const events = await eventModel.find().sort({ createdAt: -1 });
+    console.log(`getAllEvents: Found ${events.length} events`);
+    
     res.status(200).json({
       success: true,
       events,
     });
   } catch (error) {
-    return next(new ErrorHandler(error, 404));
+    console.error("getAllEvents: Error occurred:", error);
+    return next(new ErrorHandler(error.message, 500));
   }
 });
 
 // Get all events (Admin)
 export const adminAllEvents = catchAsyncErrors(async (req, res, next) => {
   try {
-    const events = await eventModel.find().sort({
-      createdAt: -1,
+    // Get all events, populate shop data from shopId, and sort by creation date
+    const events = await eventModel
+      .find()
+      .populate('shopId', 'name email address avatar')
+      .sort({ createdAt: -1 });
+    
+    // Process events to ensure shop data is consistently structured
+    const eventsWithShopNames = events.map((event) => {
+      const eventObj = event.toObject();
+      
+      // If populate worked, use the populated shop data
+      if (eventObj.shopId && eventObj.shopId.name) {
+        eventObj.shop = {
+          _id: eventObj.shopId._id,
+          name: eventObj.shopId.name,
+          email: eventObj.shopId.email,
+          address: eventObj.shopId.address,
+          avatar: eventObj.shopId.avatar
+        };
+      }
+      // If shop name already exists in shop object, keep it
+      else if (eventObj.shop && eventObj.shop.name) {
+        // Shop data is already good
+      }
+      // Fallback: try to find shop manually
+      else {
+        eventObj.shop = {
+          _id: eventObj.shopId || "unknown",
+          name: eventObj.shop?.name || `Shop ${(eventObj.shopId || "unknown").toString().slice(-6)}`,
+          email: eventObj.shop?.email || "unknown@shop.com",
+          address: eventObj.shop?.address || "Unknown Address"
+        };
+      }
+      
+      return eventObj;
     });
+    
     res.status(200).json({
       success: true,
-      events,
+      events: eventsWithShopNames,
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, 500));

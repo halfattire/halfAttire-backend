@@ -504,6 +504,7 @@ export const adminAllUsers = catchAsyncErrors(async (req, res, next) => {
     const users = await userModel.find().sort({
       createdAt: -1,
     });
+    
     res.status(200).json({
       success: true,
       users,

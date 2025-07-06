@@ -210,11 +210,52 @@ export const adminAllOrders = catchAsyncErrors(async (req, res, next) => {
       createdAt: -1,
     })
 
-    // console.log(`✅ Found ${orders.length} orders`)
+    // Populate shop information for each order
+    const ordersWithShopInfo = await Promise.all(
+      orders.map(async (order) => {
+        const orderObj = order.toObject();
+        
+        // Process cart items to add shop information
+        if (orderObj.cart && orderObj.cart.length > 0) {
+          const cartWithShopInfo = await Promise.all(
+            orderObj.cart.map(async (item) => {
+              if (item.shopId) {
+                try {
+                  const shop = await shopModel.findById(item.shopId);
+                  if (shop) {
+                    item.shop = {
+                      _id: shop._id,
+                      name: shop.name,
+                      email: shop.email,
+                      address: shop.address,
+                      avatar: shop.avatar
+                    };
+                  }
+                } catch (error) {
+                  console.log(`Could not find shop for shopId: ${item.shopId}`);
+                  item.shop = {
+                    _id: item.shopId,
+                    name: `Shop ${item.shopId.toString().slice(-6)}`,
+                    email: "unknown@shop.com",
+                    address: "Unknown Address"
+                  };
+                }
+              }
+              return item;
+            })
+          );
+          orderObj.cart = cartWithShopInfo;
+        }
+        
+        return orderObj;
+      })
+    );
+
+    // console.log(`✅ Found ${ordersWithShopInfo.length} orders`)
 
     res.status(200).json({
       success: true,
-      orders,
+      orders: ordersWithShopInfo,
     })
   } catch (error) {
     console.error("❌ Error fetching admin orders:", error)

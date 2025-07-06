@@ -17,7 +17,7 @@ const eventSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
-  Finish_Date: {
+  finish_Date: {
     type: Date,
     required: true,
   },
@@ -41,7 +41,8 @@ const eventSchema = new mongoose.Schema({
   },
   images: [{ type: String }],
   shopId: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "shop",
     required: true,
   },
   shop: {

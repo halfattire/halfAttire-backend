@@ -1,9 +1,21 @@
 import express from "express";
-import { processPayment, stripeApiKey } from "../controller/paymentController.js";
+import { 
+  processDirectCardPayment, 
+  getAdminCardInfo, 
+  verifyAdminCard, 
+  processRefund,
+  stripeApiKey 
+} from "../controller/paymentController.js";
 
 const paymentRouter = express.Router();
 
-paymentRouter.post("/process", processPayment);
+// Direct card payment routes
+paymentRouter.post("/process-direct", processDirectCardPayment);
+paymentRouter.get("/admin-card-info", getAdminCardInfo);
+paymentRouter.post("/verify-admin-card", verifyAdminCard);
+paymentRouter.post("/refund", processRefund);
+
+// Legacy route for backward compatibility
 paymentRouter.get("/stripeapikey", stripeApiKey);
 
 export default paymentRouter;
