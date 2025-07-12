@@ -8,17 +8,26 @@ import admin from "firebase-admin"
 export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
   let token = null;
 
+  console.log("🔍 Auth middleware - Request URL:", req.originalUrl);
+  console.log("🔍 Auth middleware - Headers:", {
+    authorization: req.headers.authorization ? "Present" : "Missing",
+    cookie: req.headers.cookie ? "Present" : "Missing"
+  });
+
   // Try to get token from multiple sources
   // 1. Authorization header (Bearer token)
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
     token = req.headers.authorization.split(" ")[1];
+    console.log("✅ Token found in Authorization header:", token.substring(0, 20) + "...");
   }
   // 2. Cookie (fallback)
   else if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
+    console.log("✅ Token found in cookies:", token.substring(0, 20) + "...");
   }
 
   if (!token) {
+    console.log("❌ No token found in request");
     return next(new ErrorHandler("Please login to access this resource", 401));
   }
 
@@ -26,9 +35,10 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
   try {
     // Verify JWT token
     decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    console.log("✅ Token decoded successfully. User ID:", decoded.id);
   } catch (jwtError) {
     // Handle different JWT errors with detailed logging
-    console.log("JWT Error:", jwtError.name, jwtError.message);
+    console.log("❌ JWT Error:", jwtError.name, jwtError.message);
     
     if (jwtError.name === 'TokenExpiredError') {
       return next(new ErrorHandler("Your session has expired, please login again", 401));
@@ -43,11 +53,15 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
   const user = await userModel.findById(decoded.id);
 
   if (!user) {
+    console.log("❌ User not found in database for ID:", decoded.id);
     return next(new ErrorHandler("User account no longer exists", 401));
   }
 
+  console.log("✅ User found:", { id: user._id, email: user.email, role: user.role });
+
   // Check if user is active (optional additional security)
   if (user.status === 'inactive' || user.status === 'banned') {
+    console.log("❌ User account is inactive/banned:", user.status);
     return next(new ErrorHandler("Your account has been deactivated", 401));
   }
 
@@ -75,14 +89,19 @@ export const verifyFirebaseToken = catchAsyncErrors(async (req, res, next) => {
 export const isAdmin = catchAsyncErrors(async (req, res, next) => {
   // Ensure user is authenticated first
   if (!req.user) {
+    console.log("❌ isAdmin: No user in request object");
     return next(new ErrorHandler("Authentication required to access admin resources", 401));
   }
 
-  // Check if user has admin role
-  if (req.user.role !== "admin") {
+  console.log("🔍 isAdmin check - User:", { id: req.user._id, email: req.user.email, role: req.user.role });
+
+  // Check if user has admin role (case-insensitive)
+  if (!req.user.role || req.user.role.toLowerCase() !== "admin") {
+    console.log("❌ isAdmin: User does not have admin role. Current role:", req.user.role);
     return next(new ErrorHandler("Admin access required - insufficient privileges", 403));
   }
 
+  console.log("✅ isAdmin: Admin access granted");
   next();
 });
 
