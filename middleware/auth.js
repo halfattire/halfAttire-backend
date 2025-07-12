@@ -27,13 +27,15 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
     // Verify JWT token
     decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
   } catch (jwtError) {
-    // Handle different JWT errors
+    // Handle different JWT errors with detailed logging
+    console.log("JWT Error:", jwtError.name, jwtError.message);
+    
     if (jwtError.name === 'TokenExpiredError') {
-      return next(new ErrorHandler("Token has expired, please login again", 401));
+      return next(new ErrorHandler("Your session has expired, please login again", 401));
     } else if (jwtError.name === 'JsonWebTokenError') {
-      return next(new ErrorHandler("Invalid token, please login again", 401));
+      return next(new ErrorHandler("Invalid authentication token, please login again", 401));
     } else {
-      return next(new ErrorHandler("Authentication failed", 401));
+      return next(new ErrorHandler("Authentication failed, please try again", 401));
     }
   }
 
@@ -41,12 +43,12 @@ export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
   const user = await userModel.findById(decoded.id);
 
   if (!user) {
-    return next(new ErrorHandler("User no longer exists", 401));
+    return next(new ErrorHandler("User account no longer exists", 401));
   }
 
   // Check if user is active (optional additional security)
   if (user.status === 'inactive' || user.status === 'banned') {
-    return next(new ErrorHandler("Account is inactive", 401));
+    return next(new ErrorHandler("Your account has been deactivated", 401));
   }
 
   req.user = user;

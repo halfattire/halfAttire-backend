@@ -15,21 +15,20 @@ import { isAdmin, isSeller, isAuthenticated } from "../middleware/auth.js"
 
 const shopRouter = express.Router()
 
-// Modified route - removed isAdmin middleware from login
+// Public routes
 shopRouter.post("/login-shop", shopLogin)
-
-// TEMPORARY - ALL AUTH MIDDLEWARE REMOVED FOR TESTING
 shopRouter.post("/create-shop", createShop)
-
 shopRouter.post("/seller/activation", activateSellerShop)
-shopRouter.get("/getSeller", loadShop)
-shopRouter.get("/logout", logout)
 shopRouter.get("/get-shop-info/:id", getShopInfo)
-shopRouter.put("/update-shop-avatar", updateShopAvatar)
-shopRouter.put("/update-seller-info", updateSellerInfo)
 
-// Admin routes - TEMPORARILY ACCESSIBLE WITHOUT AUTH
-shopRouter.get("/admin-all-sellers", getAllSellers);
-shopRouter.delete("/admin-delete-seller/:id", deleteSeller);
+// Protected routes with authentication middleware
+shopRouter.get("/getSeller", isSeller, loadShop)
+shopRouter.get("/logout", logout)
+shopRouter.put("/update-shop-avatar", isSeller, updateShopAvatar)
+shopRouter.put("/update-seller-info", isSeller, updateSellerInfo)
+
+// Admin routes with authentication
+shopRouter.get("/admin-all-sellers", isAuthenticated, isAdmin, getAllSellers);
+shopRouter.delete("/admin-delete-seller/:id", isAuthenticated, isAdmin, deleteSeller);
 
 export default shopRouter

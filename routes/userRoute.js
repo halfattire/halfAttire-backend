@@ -29,18 +29,18 @@ userRouter.post("/google-test", (req, res) => {
   console.log("Google test endpoint hit:", req.body)
   res.json({ success: true, message: "Google test endpoint working", body: req.body })
 })
-// TEMPORARY - ALL AUTH MIDDLEWARE REMOVED FOR TESTING
-userRouter.get("/getuser", getUser)
+// Protected routes with authentication middleware
+userRouter.get("/getuser", isAuthenticated, getUser)
 userRouter.get("/logout", Logout)
-userRouter.put("/update-user-info", updateUserInfo)
-userRouter.put("/update-avatar", updateUserAvatar)
-userRouter.put("/update-user-addresses", updateUserAddress)
-userRouter.delete("/delete-user-address/:id", deleteUserAddress)
-userRouter.put("/update-user-password", updateUserPassword)
+userRouter.put("/update-user-info", isAuthenticated, updateUserInfo)
+userRouter.put("/update-avatar", isAuthenticated, updateUserAvatar)
+userRouter.put("/update-user-addresses", isAuthenticated, updateUserAddress)
+userRouter.delete("/delete-user-address/:id", isAuthenticated, deleteUserAddress)
+userRouter.put("/update-user-password", isAuthenticated, updateUserPassword)
 userRouter.get("/user-info/:id", getUserInfo)
 userRouter.post("/send-email", sendContactForm)
-// Admin routes - TEMPORARILY ACCESSIBLE WITHOUT AUTH
-userRouter.get("/admin-all-users", adminAllUsers);
-userRouter.delete("/admin-delete-user/:id", adminDeleteUser);
+// Admin routes with authentication
+userRouter.get("/admin-all-users", isAuthenticated, isAdmin, adminAllUsers);
+userRouter.delete("/admin-delete-user/:id", isAuthenticated, isAdmin, adminDeleteUser);
 
 export default userRouter

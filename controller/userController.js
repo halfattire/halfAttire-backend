@@ -362,34 +362,7 @@ export const updateUserAvatar = catchAsyncErrors(async (req, res, next) => {
 
 export const updateUserAddress = catchAsyncErrors(async (req, res, next) => {
   try {
-    // Get user ID from req.user if authenticated, or try to get from token manually
-    let userId = req.user?.id || req.user?._id;
-    
-    if (!userId) {
-      // Try to extract user ID from token manually when auth middleware is disabled
-      let token = null;
-      
-      if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
-        token = req.headers.authorization.split(" ")[1];
-      } else if (req.cookies && req.cookies.token) {
-        token = req.cookies.token;
-      }
-      
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-          userId = decoded.id;
-        } catch (jwtError) {
-          return next(new ErrorHandler("Invalid authentication token", 401));
-        }
-      }
-      
-      if (!userId) {
-        return next(new ErrorHandler("Authentication required to update address", 401));
-      }
-    }
-
-    const user = await userModel.findById(userId);
+    const user = await userModel.findById(req.user.id);
     
     if (!user) {
       return next(new ErrorHandler("User not found", 404));
@@ -422,33 +395,7 @@ export const updateUserAddress = catchAsyncErrors(async (req, res, next) => {
 
 export const deleteUserAddress = catchAsyncErrors(async (req, res, next) => {
   try {
-    // Get user ID from req.user if authenticated, or try to get from token manually
-    let userId = req.user?.id || req.user?._id;
-    
-    if (!userId) {
-      // Try to extract user ID from token manually when auth middleware is disabled
-      let token = null;
-      
-      if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
-        token = req.headers.authorization.split(" ")[1];
-      } else if (req.cookies && req.cookies.token) {
-        token = req.cookies.token;
-      }
-      
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-          userId = decoded.id;
-        } catch (jwtError) {
-          return next(new ErrorHandler("Invalid authentication token", 401));
-        }
-      }
-      
-      if (!userId) {
-        return next(new ErrorHandler("Authentication required to delete address", 401));
-      }
-    }
-
+    const userId = req.user._id;
     const addressId = req.params.id;
 
     await userModel.updateOne(
