@@ -78,12 +78,9 @@ const createActivationToken = (seller) => {
 // activate shop - FIXED with better error handling
 export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
   try {
-    console.log("=== Shop Activation Request ===")
     const { activation_token } = req.body
-    console.log("Activation token received:", !!activation_token)
     
     if (!activation_token) {
-      console.error("No activation token provided")
       return next(new ErrorHandler("Activation token is required", 400))
     }
 

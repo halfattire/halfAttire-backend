@@ -9,38 +9,21 @@ import { cloudinary, isCloudinaryConfigured } from "../server.js"
 // Google authentication handler
 export const googleAuth = catchAsyncErrors(async (req, res, next) => {
   try {
-    console.log("=== Google Auth Request ===");
-    console.log("Request method:", req.method);
-    console.log("Request headers:", req.headers);
-    console.log("Request body:", req.body);
-    console.log("Request body type:", typeof req.body);
-    console.log("Request body keys:", Object.keys(req.body || {}));
-    
     const { name, email, photo } = req.body;
     
-    console.log("Extracted data:", { name, email, photo });
-    console.log("Email exists:", !!email);
-    console.log("Email type:", typeof email);
-    console.log("Email value:", email);
-    
     if (!email) {
-      console.error("❌ Email is missing from request");
       return res.status(400).json({
         success: false,
         message: "Email is required",
-        receivedData: req.body,
       });
     }
 
     const defaultAvatar = "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg";
     const avatarUrl = photo || defaultAvatar;
 
-    console.log("🔍 Looking for user with email:", email);
     const user = await userModel.findOne({ email });
 
     if (user) {
-      console.log("✅ Existing user found:", user.email);
-
       if (photo && user.avatar !== photo) {
         user.avatar = photo;
         await user.save();
@@ -63,8 +46,6 @@ export const googleAuth = catchAsyncErrors(async (req, res, next) => {
         message: "Login successful",
       });
     } else {
-      console.log("📝 Creating new user for:", email);
-      
       const generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
 
       const newUser = new userModel({
@@ -76,7 +57,6 @@ export const googleAuth = catchAsyncErrors(async (req, res, next) => {
       });
 
       await newUser.save();
-      console.log("✅ New user created:", newUser.email);
 
       const token = newUser.getJwtToken();
 
@@ -267,8 +247,6 @@ export const updateUserInfo = catchAsyncErrors(async (req, res, next) => {
 
     await user.save()
 
-    console.log("User info updated successfully")
-
     res.status(200).json({
       success: true,
       user,
@@ -370,9 +348,6 @@ export const updateUserAvatar = catchAsyncErrors(async (req, res, next) => {
     // Update user avatar
     existUser.avatar = result.secure_url
     await existUser.save()
-
-    console.log("✅ User avatar updated successfully")
-    console.log("=== Avatar Update Request Completed ===")
 
     res.status(200).json({
       success: true,
