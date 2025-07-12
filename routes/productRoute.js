@@ -12,6 +12,6 @@ productRouter.get("/get-all-products", getAllProducts)
 productRouter.put("/create-new-review",createReview);
 
 // Admin routes
-productRouter.get("/admin-all-products", isAuthenticated, isAdmin, adminAllProducts);
+productRouter.get("/admin-all-products",isAdmin, adminAllProducts);
 
 export default productRouter;

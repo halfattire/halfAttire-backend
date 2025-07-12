@@ -13,11 +13,11 @@ const eventRouter = express.Router();
 
 // event routes
 eventRouter.post("/create-event", isSeller, createEvent);
-eventRouter.get("/get-all-shop-events/:id", getAllShopEvents);
+eventRouter.get("/get-all-shop-events/:id",isSeller, getAllShopEvents);
 eventRouter.delete("/delete-shop-event/:id", isSeller, deleteEvent);
-eventRouter.get("/get-all-events/", getAllEvents);
-eventRouter.put("/create-new-review", isAuthenticated, createEventReview);
+eventRouter.get("/get-all-events/", isSeller, getAllEvents);
+eventRouter.put("/create-new-review", isSeller,createEventReview);
 // Admin routes
-eventRouter.get("/admin-all-events", isAuthenticated, isAdmin, adminAllEvents);
-eventRouter.delete("/admin-delete-event/:id", isAuthenticated, isAdmin, deleteEvent);
+eventRouter.get("/admin-all-events", isAdmin, adminAllEvents);
+eventRouter.delete("/admin-delete-event/:id", isAdmin, deleteEvent);
 export default eventRouter;

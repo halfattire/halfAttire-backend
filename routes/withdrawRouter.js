@@ -15,8 +15,8 @@ router.post("/create-withdraw-request", isSeller, createWithdrawRequest);
 router.get("/get-seller-withdraws", isSeller, getSellerWithdraws);
 
 // Admin routes
-router.get("/get-all-withdraw-request", isAuthenticated, isAdmin, getAllWithdrawRequests);
-router.put("/update-withdraw-request/:id", isAuthenticated, isAdmin, updateWithdrawRequest);
-router.get("/get-withdraw-stats", isAuthenticated, isAdmin, getWithdrawStats);
+router.get("/get-all-withdraw-request",  isAdmin, getAllWithdrawRequests);
+router.put("/update-withdraw-request/:id",  isAdmin, updateWithdrawRequest);
+router.get("/get-withdraw-stats",  isAdmin, getWithdrawStats);
 
 export default router;

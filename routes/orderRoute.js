@@ -20,8 +20,8 @@ orderRouter.put("/update-order-status/:id", isSeller, updateOrderStatus);
 orderRouter.put("/order-refund/:id", orderRefund);
 orderRouter.put("/order-refund-success/:id", isSeller,shopRefundOrders);
 // Admin routes
-orderRouter.get("/admin-all-orders", isAuthenticated, isAdmin, adminAllOrders);
-orderRouter.get("/admin/order/:id", isAuthenticated, isAdmin, adminOrderDetails)
-orderRouter.put("/admin/order/:id", isAuthenticated, isAdmin, adminUpdateOrderStatus)
+orderRouter.get("/admin-all-orders",  isAdmin, adminAllOrders);
+orderRouter.get("/admin/order/:id",  isAdmin, adminOrderDetails)
+orderRouter.put("/admin/order/:id",  isAdmin, adminUpdateOrderStatus)
 
 export default orderRouter;
