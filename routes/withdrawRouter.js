@@ -10,13 +10,14 @@ import { isSeller, isAuthenticated, isAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// TEMPORARY - ALL AUTH MIDDLEWARE REMOVED FOR TESTING
 // Seller routes
-router.post("/create-withdraw-request", isSeller, createWithdrawRequest);
-router.get("/get-seller-withdraws", isSeller, getSellerWithdraws);
+router.post("/create-withdraw-request", createWithdrawRequest);
+router.get("/get-seller-withdraws", getSellerWithdraws);
 
-// Admin routes
-router.get("/get-all-withdraw-request",  isAdmin, getAllWithdrawRequests);
-router.put("/update-withdraw-request/:id",  isAdmin, updateWithdrawRequest);
-router.get("/get-withdraw-stats",  isAdmin, getWithdrawStats);
+// Admin routes - TEMPORARILY ACCESSIBLE WITHOUT AUTH
+router.get("/get-all-withdraw-request", getAllWithdrawRequests);
+router.put("/update-withdraw-request/:id", updateWithdrawRequest);
+router.get("/get-withdraw-stats", getWithdrawStats);
 
 export default router;

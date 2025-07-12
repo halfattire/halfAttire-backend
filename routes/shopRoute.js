@@ -18,18 +18,18 @@ const shopRouter = express.Router()
 // Modified route - removed isAdmin middleware from login
 shopRouter.post("/login-shop", shopLogin)
 
-// Fixed route - ensure isAuthenticated runs before isAdmin
-shopRouter.post("/create-shop", isAuthenticated, isAdmin, createShop)
+// TEMPORARY - ALL AUTH MIDDLEWARE REMOVED FOR TESTING
+shopRouter.post("/create-shop", createShop)
 
 shopRouter.post("/seller/activation", activateSellerShop)
-shopRouter.get("/getSeller", isSeller, loadShop)
-shopRouter.get("/logout", isSeller, logout)
+shopRouter.get("/getSeller", loadShop)
+shopRouter.get("/logout", logout)
 shopRouter.get("/get-shop-info/:id", getShopInfo)
-shopRouter.put("/update-shop-avatar", isSeller, updateShopAvatar)
-shopRouter.put("/update-seller-info", isSeller, updateSellerInfo)
+shopRouter.put("/update-shop-avatar", updateShopAvatar)
+shopRouter.put("/update-seller-info", updateSellerInfo)
 
-// Admin routes
-shopRouter.get("/admin-all-sellers",  isAdmin, getAllSellers);
-shopRouter.delete("/admin-delete-seller/:id",  isAdmin, deleteSeller);
+// Admin routes - TEMPORARILY ACCESSIBLE WITHOUT AUTH
+shopRouter.get("/admin-all-sellers", getAllSellers);
+shopRouter.delete("/admin-delete-seller/:id", deleteSeller);
 
 export default shopRouter

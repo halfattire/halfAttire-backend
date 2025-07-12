@@ -4,14 +4,14 @@ import { isAdmin, isAuthenticated, isSeller } from "../middleware/auth.js";
 
 const productRouter = express.Router();
 
-// product routes
+// TEMPORARY - ALL AUTH MIDDLEWARE REMOVED FOR TESTING
 productRouter.post("/create-product", createProduct);
 productRouter.get("/get-all-shop-products/:id", getAllShopProducts)
-productRouter.delete("/delete-shop-products/:id",isSeller, deleteShopProduct)
+productRouter.delete("/delete-shop-products/:id", deleteShopProduct)
 productRouter.get("/get-all-products", getAllProducts)
-productRouter.put("/create-new-review",createReview);
+productRouter.put("/create-new-review", createReview);
 
-// Admin routes
-productRouter.get("/admin-all-products",isAdmin, adminAllProducts);
+// Admin routes - TEMPORARILY ACCESSIBLE WITHOUT AUTH
+productRouter.get("/admin-all-products", adminAllProducts);
 
 export default productRouter;

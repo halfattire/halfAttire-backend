@@ -6,42 +6,52 @@ import shopModel from "../model/shopModel.js"
 import admin from "firebase-admin"
 
 export const isAuthenticated = catchAsyncErrors(async (req, res, next) => {
-  // Get token from multiple possible sources
-  const token =
-    req.cookies.token ||
-    (req.headers.authorization && req.headers.authorization.startsWith("Bearer")
-      ? req.headers.authorization.split(" ")[1]
-      : null)
+  let token = null;
 
-  // console.log("Auth middleware - Cookies:", req.cookies)
-  // console.log("Auth middleware - Token:", token ? "Present" : "Missing")
-  // console.log("Auth middleware - Headers:", req.headers.authorization)
+  // Try to get token from multiple sources
+  // 1. Authorization header (Bearer token)
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  // 2. Cookie (fallback)
+  else if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  }
 
   if (!token) {
-    return next(new ErrorHandler("Please login to access this resource", 401))
+    return next(new ErrorHandler("Please login to access this resource", 401));
   }
 
-  let decoded
+  let decoded;
   try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET_KEY)
-    // console.log("Token decoded successfully, user ID:", decoded.id)
+    // Verify JWT token
+    decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
   } catch (jwtError) {
-    console.error("JWT verification error:", jwtError.message)
-    return next(new ErrorHandler("Invalid or expired token", 401))
+    // Handle different JWT errors
+    if (jwtError.name === 'TokenExpiredError') {
+      return next(new ErrorHandler("Token has expired, please login again", 401));
+    } else if (jwtError.name === 'JsonWebTokenError') {
+      return next(new ErrorHandler("Invalid token, please login again", 401));
+    } else {
+      return next(new ErrorHandler("Authentication failed", 401));
+    }
   }
 
-  const user = await userModel.findById(decoded.id)
+  // Verify user exists in database
+  const user = await userModel.findById(decoded.id);
 
   if (!user) {
-    console.error("User not found for ID:", decoded.id)
-    return next(new ErrorHandler("User not found", 404))
+    return next(new ErrorHandler("User no longer exists", 401));
   }
 
-  // console.log("User authenticated successfully:", user.email)
-  req.user = user
+  // Check if user is active (optional additional security)
+  if (user.status === 'inactive' || user.status === 'banned') {
+    return next(new ErrorHandler("Account is inactive", 401));
+  }
 
-  next()
-})
+  req.user = user;
+  next();
+});
 
 // Optional: Firebase token verification middleware
 export const verifyFirebaseToken = catchAsyncErrors(async (req, res, next) => {
@@ -61,30 +71,150 @@ export const verifyFirebaseToken = catchAsyncErrors(async (req, res, next) => {
 })
 
 export const isAdmin = catchAsyncErrors(async (req, res, next) => {
+  // Ensure user is authenticated first
   if (!req.user) {
-    return next(new ErrorHandler("User not authenticated", 401))
+    return next(new ErrorHandler("Authentication required to access admin resources", 401));
   }
 
+  // Check if user has admin role
   if (req.user.role !== "admin") {
-    return next(new ErrorHandler("Admin access only", 403))
+    return next(new ErrorHandler("Admin access required - insufficient privileges", 403));
   }
-  next()
-})
+
+  next();
+});
 
 export const isSeller = catchAsyncErrors(async (req, res, next) => {
-  const { seller_token } = req.cookies
+  let token = null;
 
-  if (!seller_token) {
-    return next(new ErrorHandler("UnAuthorized User", 401))
+  // Try to get token from multiple sources
+  // 1. Authorization header (Bearer token)
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  // 2. seller_token cookie (fallback)
+  else if (req.cookies && req.cookies.seller_token) {
+    token = req.cookies.seller_token;
   }
 
-  const decoded = jwt.verify(seller_token, process.env.JWT_SECRET_KEY)
-
-  req.seller = await shopModel.findById(decoded.id)
-
-  if (!req.seller) {
-    return next(new ErrorHandler("Seller not found", 401))
+  if (!token) {
+    return next(new ErrorHandler("Seller authentication required", 401));
   }
 
-  next()
-})
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  } catch (jwtError) {
+    if (jwtError.name === 'TokenExpiredError') {
+      return next(new ErrorHandler("Seller token has expired, please login again", 401));
+    } else if (jwtError.name === 'JsonWebTokenError') {
+      return next(new ErrorHandler("Invalid seller token, please login again", 401));
+    } else {
+      return next(new ErrorHandler("Seller authentication failed", 401));
+    }
+  }
+
+  const seller = await shopModel.findById(decoded.id);
+
+  if (!seller) {
+    return next(new ErrorHandler("Seller account not found", 401));
+  }
+
+  // Check if seller account is active
+  if (seller.status === 'inactive' || seller.status === 'banned') {
+    return next(new ErrorHandler("Seller account is inactive", 401));
+  }
+
+  req.seller = seller;
+  next();
+});
+
+// Debug middleware for authentication issues (can be enabled temporarily)
+export const debugAuth = catchAsyncErrors(async (req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && process.env.DEBUG_AUTH === 'true') {
+    console.log('=== AUTH DEBUG ===');
+    console.log('Headers:', {
+      authorization: req.headers.authorization ? 'Present' : 'Missing',
+      cookie: req.headers.cookie ? 'Present' : 'Missing',
+      'user-agent': req.headers['user-agent'],
+      origin: req.headers.origin,
+      referer: req.headers.referer
+    });
+    console.log('Cookies:', Object.keys(req.cookies || {}));
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    console.log('=================');
+  }
+  next();
+});
+
+// Production-safe authentication middleware with enhanced error handling
+export const isAuthenticatedProd = catchAsyncErrors(async (req, res, next) => {
+  let token = null;
+  
+  // Enhanced token extraction for production environment
+  try {
+    // 1. Try Authorization header first (most reliable for production)
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
+    // 2. Try cookies as fallback
+    else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
+    // 3. Try custom header (for some proxy configurations)
+    else if (req.headers['x-auth-token']) {
+      token = req.headers['x-auth-token'];
+    }
+
+    if (!token) {
+      return next(new ErrorHandler("Authentication token required", 401));
+    }
+
+    // Enhanced JWT verification with production considerations
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+      
+      // Check token expiration buffer (5 minutes before actual expiry)
+      const now = Math.floor(Date.now() / 1000);
+      const expiryBuffer = 300; // 5 minutes
+      
+      if (decoded.exp && (decoded.exp - now) < expiryBuffer) {
+        return next(new ErrorHandler("Token expires soon, please refresh", 401));
+      }
+      
+    } catch (jwtError) {
+      if (jwtError.name === 'TokenExpiredError') {
+        return next(new ErrorHandler("Session expired, please login again", 401));
+      } else if (jwtError.name === 'JsonWebTokenError') {
+        return next(new ErrorHandler("Invalid authentication token", 401));
+      } else if (jwtError.name === 'NotBeforeError') {
+        return next(new ErrorHandler("Token not active yet", 401));
+      } else {
+        return next(new ErrorHandler("Authentication failed", 401));
+      }
+    }
+
+    // Verify user exists and is active
+    const user = await userModel.findById(decoded.id).select('+status');
+    
+    if (!user) {
+      return next(new ErrorHandler("User account not found", 401));
+    }
+
+    // Additional production security checks
+    if (user.status && ['inactive', 'suspended', 'banned', 'deleted'].includes(user.status)) {
+      return next(new ErrorHandler("Account is not active", 401));
+    }
+
+    // Set user in request for downstream middleware
+    req.user = user;
+    next();
+    
+  } catch (error) {
+    console.error('Authentication middleware error:', error);
+    return next(new ErrorHandler("Authentication system error", 500));
+  }
+});
