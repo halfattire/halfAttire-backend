@@ -198,9 +198,13 @@ export const loadShop = catchAsyncErrors(async (req, res, next) => {
       return next(new ErrorHandler("Shop not found", 400));
     }
 
+    // Generate fresh token
+    const token = seller.getJwtToken();
+
     res.status(200).json({
       success: true,
       seller,
+      token, // Include token in response for localStorage backup
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, 500));

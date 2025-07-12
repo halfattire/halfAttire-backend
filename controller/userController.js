@@ -206,9 +206,13 @@ export const getUser = catchAsyncErrors(async (req, res, next) => {
       return next(new ErrorHandler("User not found", 400))
     }
 
+    // Generate fresh token
+    const token = user.getJwtToken();
+
     res.status(200).json({
       success: true,
       user,
+      token, // Include token in response for localStorage backup
     })
   } catch (error) {
     return next(new ErrorHandler(error.message, 500))
