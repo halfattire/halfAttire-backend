@@ -14,20 +14,62 @@ const withdrawSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Processing", "Succeed", "Failed"],
+      enum: ["Processing", "Succeed", "Rejected"],
       default: "Processing",
     },
     paymentMethod: {
       type: String,
       required: [true, "Payment method is required"],
+      enum: ["Bank Transfer", "PayPal", "Stripe", "Jazz Cash", "Easypaisa"],
     },
     bankAccount: {
-      type: Object,
-      required: [true, "Bank account details are required"],
+      bankName: {
+        type: String,
+        required: function() {
+          return this.paymentMethod === "Bank Transfer";
+        }
+      },
+      accountNumber: {
+        type: String,
+        required: function() {
+          return this.paymentMethod === "Bank Transfer";
+        }
+      },
+      accountTitle: {
+        type: String,
+        required: function() {
+          return this.paymentMethod === "Bank Transfer";
+        }
+      },
+      branchCode: String,
+    },
+    digitalWallet: {
+      walletType: {
+        type: String,
+        enum: ["PayPal", "Stripe", "Jazz Cash", "Easypaisa"]
+      },
+      walletId: String,
+      phoneNumber: String,
+    },
+    adminNote: {
+      type: String,
+      maxlength: [500, "Admin note cannot exceed 500 characters"],
+    },
+    processedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    processedAt: {
+      type: Date,
+    },
+    transactionId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
   },
   {
-    timestamps: true, // Automatically adds createdAt and updatedAt fields
+    timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true },
   }
@@ -37,6 +79,7 @@ const withdrawSchema = new mongoose.Schema(
 withdrawSchema.index({ seller: 1 });
 withdrawSchema.index({ status: 1 });
 withdrawSchema.index({ createdAt: -1 });
+withdrawSchema.index({ transactionId: 1 });
 
 // Virtual populate to get seller details
 withdrawSchema.virtual("sellerDetails", {
@@ -46,22 +89,12 @@ withdrawSchema.virtual("sellerDetails", {
   justOne: true,
 });
 
-// Pre-save hook to validate withdrawal amount
-withdrawSchema.pre("save", async function (next) {
-  const shop = await mongoose.model("Shop").findById(this.seller);
-  if (shop.availableBalance < this.amount) {
-    throw new Error("Insufficient balance for withdrawal");
+// Generate unique transaction ID
+withdrawSchema.pre("save", function(next) {
+  if (this.isNew) {
+    this.transactionId = `WD${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
   }
   next();
-});
-
-// Post-save hook to update seller's balance
-withdrawSchema.post("save", async function (doc) {
-  if (doc.status === "Processing") {
-    await mongoose.model("Shop").findByIdAndUpdate(doc.seller, {
-      $inc: { availableBalance: -doc.amount },
-    });
-  }
 });
 
 const Withdraw = mongoose.model("Withdraw", withdrawSchema);

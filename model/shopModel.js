@@ -57,10 +57,27 @@ const shopSchema = new mongoose.Schema({
       status: {
         type: String,
         default: "Processing",
+        enum: ["Processing", "Succeed", "Rejected"],
+      },
+      type: {
+        type: String,
+        default: "withdrawal",
+        enum: ["withdrawal", "earning", "refund"],
+      },
+      withdrawId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Withdraw",
+      },
+      orderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
+      },
+      description: {
+        type: String,
       },
       createdAt: {
         type: Date,
-        default: Date.now(),
+        default: Date.now,
       },
       updatedAt: {
         type: Date,

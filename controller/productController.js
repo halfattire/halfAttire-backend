@@ -172,12 +172,24 @@ export const getAllProducts = catchAsyncErrors(async (req, res, next) => {
 
 export const createReview = catchAsyncErrors(async (req, res, next) => {
   try {
-    const { user, rating, comment, productId, orderId } = req.body
+    const { rating, comment, productId, orderId } = req.body
 
     const product = await productModel.findById(productId)
 
+    if (!product) {
+      return next(new ErrorHandler("Product not found", 404))
+    }
+
+    // Get the current user data from the request (this comes from authentication middleware)
+    const currentUser = {
+      _id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      avatar: req.user.avatar, // This ensures we have the most up-to-date avatar
+    }
+
     const review = {
-      user,
+      user: currentUser,
       rating,
       comment,
       productId,
@@ -188,7 +200,7 @@ export const createReview = catchAsyncErrors(async (req, res, next) => {
     if (isReviewed) {
       product.reviews.forEach((rev) => {
         if (rev.user._id === req.user._id) {
-          ;(rev.rating = rating), (rev.comment = comment), (rev.user = user)
+          ;(rev.rating = rating), (rev.comment = comment), (rev.user = currentUser)
         }
       })
     } else {
@@ -205,15 +217,17 @@ export const createReview = catchAsyncErrors(async (req, res, next) => {
 
     await product.save({ validateBeforeSave: false })
 
-    await orderModel.findByIdAndUpdate(
-      orderId,
-      { $set: { "cart.$[elem].isReviewed": true } },
-      { arrayFilters: [{ "elem._id": productId }], new: true },
-    )
+    if (orderId) {
+      await orderModel.findByIdAndUpdate(
+        orderId,
+        { $set: { "cart.$[elem].isReviewed": true } },
+        { arrayFilters: [{ "elem._id": productId }], new: true },
+      )
+    }
 
     res.status(200).json({
       success: true,
-      message: "Reviewed successfully!",
+      message: "Review submitted successfully!",
     })
   } catch (error) {
     return next(new ErrorHandler(error, 400))

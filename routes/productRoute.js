@@ -9,7 +9,7 @@ productRouter.post("/create-product", createProduct);
 productRouter.get("/get-all-shop-products/:id", getAllShopProducts)
 productRouter.delete("/delete-shop-products/:id",isSeller, deleteShopProduct)
 productRouter.get("/get-all-products", getAllProducts)
-productRouter.put("/create-new-review",isAuthenticated, createReview)
+productRouter.put("/create-new-review", isAuthenticated, createReview)
 
 // Admin routes
 productRouter.get("/admin-all-products", isAuthenticated, isAdmin, adminAllProducts);

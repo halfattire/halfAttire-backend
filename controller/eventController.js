@@ -7,7 +7,42 @@ import { cloudinary, isCloudinaryConfigured } from "../server.js";
 // create event
 export const createEvent = catchAsyncErrors(async (req, res, next) => {
   try {
-    const { shopId, images } = req.body;
+    console.log("Create event request body:", req.body);
+    const { shopId, images, name, description, category, discountPrice, stock, start_Date, finish_Date } = req.body;
+    
+    // Validate required fields
+    if (!shopId) {
+      return next(new ErrorHandler("Shop ID is required", 400));
+    }
+    
+    if (!name) {
+      return next(new ErrorHandler("Event name is required", 400));
+    }
+    
+    if (!description) {
+      return next(new ErrorHandler("Event description is required", 400));
+    }
+    
+    if (!category) {
+      return next(new ErrorHandler("Event category is required", 400));
+    }
+    
+    if (!discountPrice) {
+      return next(new ErrorHandler("Event price is required", 400));
+    }
+    
+    if (!stock) {
+      return next(new ErrorHandler("Event stock is required", 400));
+    }
+    
+    if (!start_Date) {
+      return next(new ErrorHandler("Event start date is required", 400));
+    }
+    
+    if (!finish_Date) {
+      return next(new ErrorHandler("Event finish date is required", 400));
+    }
+    
     const shop = await shopModel.findById(shopId);
 
     if (!shop) {
@@ -16,23 +51,28 @@ export const createEvent = catchAsyncErrors(async (req, res, next) => {
 
     let imageUrls = [];
 
-    // Handle image uploads to Cloudinary
-    if (images && images.length > 0 && isCloudinaryConfigured()) {
-      try {
-        const uploadPromises = images.map(async (image) => {
-          const result = await cloudinary.uploader.upload(image, {
-            folder: "events",
-            resource_type: "auto",
-            quality: "auto",
-            fetch_format: "auto",
+    // Handle image uploads to Cloudinary or use base64 images
+    if (images && images.length > 0) {
+      if (isCloudinaryConfigured()) {
+        try {
+          const uploadPromises = images.map(async (image) => {
+            const result = await cloudinary.uploader.upload(image, {
+              folder: "events",
+              resource_type: "auto",
+              quality: "auto",
+              fetch_format: "auto",
+            });
+            return result.secure_url;
           });
-          return result.secure_url;
-        });
-        
-        imageUrls = await Promise.all(uploadPromises);
-      } catch (uploadError) {
-        console.error("Cloudinary upload error:", uploadError);
-        return next(new ErrorHandler("Failed to upload images", 500));
+          
+          imageUrls = await Promise.all(uploadPromises);
+        } catch (uploadError) {
+          console.error("Cloudinary upload error:", uploadError);
+          return next(new ErrorHandler("Failed to upload images", 500));
+        }
+      } else {
+        // If Cloudinary is not configured, use the base64 images directly
+        imageUrls = images;
       }
     }
 
@@ -173,6 +213,79 @@ export const adminAllEvents = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json({
       success: true,
       events: eventsWithShopNames,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 500));
+  }
+});
+
+// Create new review for event
+export const createEventReview = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const { rating, comment, productId } = req.body;
+    const user = req.user;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return next(new ErrorHandler("Rating must be between 1 and 5", 400));
+    }
+
+    if (!comment || comment.trim() === "") {
+      return next(new ErrorHandler("Comment is required", 400));
+    }
+
+    if (!productId) {
+      return next(new ErrorHandler("Event ID is required", 400));
+    }
+
+    const event = await eventModel.findById(productId);
+
+    if (!event) {
+      return next(new ErrorHandler("Event not found", 404));
+    }
+
+    const review = {
+      user: {
+        _id: user._id,
+        name: user.name,
+        avatar: user.avatar,
+      },
+      rating: Number(rating),
+      comment: comment.trim(),
+      productId,
+      createdAt: new Date(),
+    };
+
+    const isReviewed = event.reviews.find(
+      (rev) => rev.user._id.toString() === user._id.toString()
+    );
+
+    if (isReviewed) {
+      // Update existing review
+      event.reviews.forEach((rev) => {
+        if (rev.user._id.toString() === user._id.toString()) {
+          rev.rating = Number(rating);
+          rev.comment = comment.trim();
+          rev.createdAt = new Date();
+        }
+      });
+    } else {
+      // Add new review
+      event.reviews.push(review);
+    }
+
+    // Calculate average rating
+    let avg = 0;
+    event.reviews.forEach((rev) => {
+      avg += rev.rating;
+    });
+    event.ratings = avg / event.reviews.length;
+
+    await event.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Review added successfully!",
+      event,
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, 500));

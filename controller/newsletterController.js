@@ -109,11 +109,20 @@ export const unsubscribeNewsletter = catchAsyncErrors(async (req, res, next) => 
 // Get all newsletter subscribers (Admin only)
 export const getAllSubscribers = catchAsyncErrors(async (req, res, next) => {
     try {
-        const { status = 'active', page = 1, limit = 50 } = req.query;
+        const { status = 'active', page = 1, limit = 50, search } = req.query;
 
         const skip = (page - 1) * limit;
 
-        const query = status === 'all' ? {} : { status };
+        // Build the query object
+        let query = status === 'all' ? {} : { status };
+        
+        // Add search functionality
+        if (search && search.trim()) {
+            query.email = {
+                $regex: search.trim(),
+                $options: 'i' // Case-insensitive search
+            };
+        }
 
         const subscribers = await newsletterModel
             .find(query)

@@ -53,6 +53,29 @@ const eventSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  reviews: [
+    {
+      user: {
+        type: Object,
+      },
+      rating: {
+        type: Number,
+      },
+      comment: {
+        type: String,
+      },
+      productId: {
+        type: String,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now(),
+      },
+    },
+  ],
+  ratings: {
+    type: Number,
+  },
   createdAt: {
     type: Date,
     default: Date.now(),
