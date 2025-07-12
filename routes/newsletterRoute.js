@@ -5,7 +5,7 @@ import {
   getAllSubscribers,
   sendNewsletter,
 } from "../controller/newsletterController.js";
-import { isAuthenticated, isAdmin } from "../middleware/auth.js";
+import {isAdmin } from "../middleware/auth.js";
 
 const newsletterRouter = express.Router();
 
@@ -14,7 +14,7 @@ newsletterRouter.post("/subscribe", subscribeNewsletter);
 newsletterRouter.post("/unsubscribe", unsubscribeNewsletter);
 
 // Admin routes
-newsletterRouter.get("/subscribers", isAuthenticated, isAdmin, getAllSubscribers);
-newsletterRouter.post("/send", isAuthenticated, isAdmin, sendNewsletter);
+newsletterRouter.get("/subscribers", isAdmin, getAllSubscribers);
+newsletterRouter.post("/send",isAdmin, sendNewsletter);
 
 export default newsletterRouter;
