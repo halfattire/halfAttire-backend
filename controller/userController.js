@@ -362,52 +362,109 @@ export const updateUserAvatar = catchAsyncErrors(async (req, res, next) => {
 
 export const updateUserAddress = catchAsyncErrors(async (req, res, next) => {
   try {
-    const user = await userModel.findById(req.user.id)
+    // Get user ID from req.user if authenticated, or try to get from token manually
+    let userId = req.user?.id || req.user?._id;
+    
+    if (!userId) {
+      // Try to extract user ID from token manually when auth middleware is disabled
+      let token = null;
+      
+      if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+        token = req.headers.authorization.split(" ")[1];
+      } else if (req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+      }
+      
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+          userId = decoded.id;
+        } catch (jwtError) {
+          return next(new ErrorHandler("Invalid authentication token", 401));
+        }
+      }
+      
+      if (!userId) {
+        return next(new ErrorHandler("Authentication required to update address", 401));
+      }
+    }
 
-    const sameTypeAddress = user.addresses.find((address) => address.addressType === req.body.addressType)
+    const user = await userModel.findById(userId);
+    
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    const sameTypeAddress = user.addresses.find((address) => address.addressType === req.body.addressType);
 
     if (sameTypeAddress) {
-      return next(new ErrorHandler("Address Type already exists", 400))
+      return next(new ErrorHandler("Address Type already exists", 400));
     }
 
-    const existAddress = user.addresses.find((address) => address._id === req.body._id)
+    const existAddress = user.addresses.find((address) => address._id === req.body._id);
 
     if (existAddress) {
-      Object.assign(existAddress, req.body)
+      Object.assign(existAddress, req.body);
     } else {
-      user.addresses.push(req.body)
+      user.addresses.push(req.body);
     }
 
-    await user.save()
+    await user.save();
 
     res.status(200).json({
       success: true,
       user,
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 export const deleteUserAddress = catchAsyncErrors(async (req, res, next) => {
   try {
-    const userId = req.user._id
-    const addressId = req.params.id
+    // Get user ID from req.user if authenticated, or try to get from token manually
+    let userId = req.user?.id || req.user?._id;
+    
+    if (!userId) {
+      // Try to extract user ID from token manually when auth middleware is disabled
+      let token = null;
+      
+      if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+        token = req.headers.authorization.split(" ")[1];
+      } else if (req.cookies && req.cookies.token) {
+        token = req.cookies.token;
+      }
+      
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+          userId = decoded.id;
+        } catch (jwtError) {
+          return next(new ErrorHandler("Invalid authentication token", 401));
+        }
+      }
+      
+      if (!userId) {
+        return next(new ErrorHandler("Authentication required to delete address", 401));
+      }
+    }
+
+    const addressId = req.params.id;
 
     await userModel.updateOne(
       {
         _id: userId,
       },
       { $pull: { addresses: { _id: addressId } } },
-    )
+    );
 
-    const user = await userModel.findById(userId)
+    const user = await userModel.findById(userId);
 
-    res.status(200).json({ success: true, user })
+    res.status(200).json({ success: true, user });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 export const updateUserPassword = catchAsyncErrors(async (req, res, next) => {
   try {
