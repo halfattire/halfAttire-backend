@@ -79,7 +79,7 @@ const withdrawSchema = new mongoose.Schema(
 withdrawSchema.index({ seller: 1 });
 withdrawSchema.index({ status: 1 });
 withdrawSchema.index({ createdAt: -1 });
-withdrawSchema.index({ transactionId: 1 });
+// Note: transactionId index is automatically created due to unique: true
 
 // Virtual populate to get seller details
 withdrawSchema.virtual("sellerDetails", {

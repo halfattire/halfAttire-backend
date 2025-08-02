@@ -108,24 +108,35 @@ export const isAdmin = catchAsyncErrors(async (req, res, next) => {
 export const isSeller = catchAsyncErrors(async (req, res, next) => {
   let token = null;
 
+  console.log("🔍 isSeller middleware - Request URL:", req.originalUrl);
+  console.log("🔍 isSeller middleware - Headers:", {
+    authorization: req.headers.authorization ? "Present" : "Missing",
+    cookie: req.headers.cookie ? "Present" : "Missing"
+  });
+
   // Try to get token from multiple sources
   // 1. Authorization header (Bearer token)
   if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
     token = req.headers.authorization.split(" ")[1];
+    console.log("✅ Seller token found in Authorization header:", token.substring(0, 20) + "...");
   }
   // 2. seller_token cookie (fallback)
   else if (req.cookies && req.cookies.seller_token) {
     token = req.cookies.seller_token;
+    console.log("✅ Seller token found in cookies:", token.substring(0, 20) + "...");
   }
 
   if (!token) {
+    console.log("❌ No seller token found in request");
     return next(new ErrorHandler("Seller authentication required", 401));
   }
 
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    console.log("✅ Seller token decoded successfully. Seller ID:", decoded.id);
   } catch (jwtError) {
+    console.log("❌ Seller JWT Error:", jwtError.name, jwtError.message);
     if (jwtError.name === 'TokenExpiredError') {
       return next(new ErrorHandler("Seller token has expired, please login again", 401));
     } else if (jwtError.name === 'JsonWebTokenError') {
@@ -138,15 +149,20 @@ export const isSeller = catchAsyncErrors(async (req, res, next) => {
   const seller = await shopModel.findById(decoded.id);
 
   if (!seller) {
+    console.log("❌ Seller not found in database for ID:", decoded.id);
     return next(new ErrorHandler("Seller account not found", 401));
   }
 
+  console.log("✅ Seller found:", { id: seller._id, email: seller.email, name: seller.name });
+
   // Check if seller account is active
   if (seller.status === 'inactive' || seller.status === 'banned') {
+    console.log("❌ Seller account is inactive/banned:", seller.status);
     return next(new ErrorHandler("Seller account is inactive", 401));
   }
 
   req.seller = seller;
+  console.log("✅ isSeller: Seller access granted");
   next();
 });
 

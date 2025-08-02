@@ -83,15 +83,41 @@ app.use(cookieParser())
 app.use("/", express.static("uploads"))
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }))
 
-// Connect to database
-connectDatabase()
+// Connect to database with error handling
+const initializeDatabase = async () => {
+  try {
+    await connectDatabase();
+    console.log("📦 Database initialization completed");
+  } catch (error) {
+    console.error("💥 Database initialization failed:", error.message);
+    console.log("🔄 Server will continue running without database connection");
+    console.log("   - Health checks will indicate database status");
+    console.log("   - Some API endpoints may not function correctly");
+  }
+};
+
+// Initialize database connection
+initializeDatabase();
 
 // Health check endpoint
 app.get("/health", (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const dbStatusMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+
   res.json({
     status: "Server is running with good health",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
+    database: {
+      status: dbStatusMap[dbStatus] || 'unknown',
+      readyState: dbStatus,
+      host: mongoose.connection.host || 'not connected'
+    },
     cloudinary: {
       configured: isCloudinaryConfigured(),
     },
