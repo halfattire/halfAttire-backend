@@ -1,10 +1,10 @@
-import catchAsyncErrors from "../middleware/catchAsyncErrors.js"
-import shopModel from "../model/shopModel.js"
-import ErrorHandler from "../utils/ErrorHandler.js"
-import sendMail from "../utils/sendMail.js"
-import jwt from "jsonwebtoken"
-import sendShopToken from "../utils/ShopToken.js"
-import { cloudinary, isCloudinaryConfigured } from "../server.js"
+import catchAsyncErrors from "../middleware/catchAsyncErrors.js";
+import shopModel from "../model/shopModel.js";
+import ErrorHandler from "../utils/ErrorHandler.js";
+import sendMail from "../utils/sendMail.js";
+import jwt from "jsonwebtoken";
+import sendShopToken from "../utils/ShopToken.js";
+import { cloudinary, isCloudinaryConfigured } from "../server.js";
 
 // Modified to use Cloudinary instead of Multer
 export const createShop = catchAsyncErrors(async (req, res, next) => {
@@ -19,7 +19,7 @@ export const createShop = catchAsyncErrors(async (req, res, next) => {
 
     // Handle avatar upload to Cloudinary
     let avatarUrl = "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg"
-
+    
     if (avatar && isCloudinaryConfigured()) {
       try {
         const result = await cloudinary.uploader.upload(avatar, {
@@ -27,11 +27,11 @@ export const createShop = catchAsyncErrors(async (req, res, next) => {
           resource_type: "auto",
           quality: "auto",
           fetch_format: "auto",
-        })
-        avatarUrl = result.secure_url
+        });
+        avatarUrl = result.secure_url;
       } catch (uploadError) {
-        console.error("Cloudinary upload error:", uploadError)
-        return next(new ErrorHandler("Failed to upload avatar", 500))
+        console.error("Cloudinary upload error:", uploadError);
+        return next(new ErrorHandler("Failed to upload avatar", 500));
       }
     }
 
@@ -46,6 +46,7 @@ export const createShop = catchAsyncErrors(async (req, res, next) => {
     }
 
     const activationToken = createActivationToken(seller)
+
     const activationUrl = `${process.env.FRONTEND_BASE_URL || "https://www.halfattire.com"}/seller/activation/${activationToken}`
 
     try {
@@ -78,7 +79,7 @@ const createActivationToken = (seller) => {
 export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
   try {
     const { activation_token } = req.body
-
+    
     if (!activation_token) {
       return next(new ErrorHandler("Activation token is required", 400))
     }
@@ -125,7 +126,7 @@ export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
       // Save the seller to the database
       await newSeller.save()
       console.log("New seller created successfully:", newSeller.email)
-
+      
       // Send the token
       sendShopToken(newSeller, 201, res)
     } catch (dbError) {
@@ -137,6 +138,9 @@ export const activateSellerShop = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler(error.message, 500))
   }
 })
+
+
+
 
 // shop login
 export const shopLogin = catchAsyncErrors(async (req, res, next) => {
@@ -172,6 +176,7 @@ export const shopLogin = catchAsyncErrors(async (req, res, next) => {
       secure: process.env.NODE_ENV === "production", // Only secure in production
     }
 
+
     // Set cookie and send response
     res.status(200).cookie("seller_token", token, options).json({
       success: true,
@@ -184,25 +189,27 @@ export const shopLogin = catchAsyncErrors(async (req, res, next) => {
   }
 })
 
+
 export const loadShop = catchAsyncErrors(async (req, res, next) => {
   try {
-    const seller = await shopModel.findById(req.seller.id)
+    const seller = await shopModel.findById(req.seller.id);
+
     if (!seller) {
-      return next(new ErrorHandler("Shop not found", 400))
+      return next(new ErrorHandler("Shop not found", 400));
     }
 
     // Generate fresh token
-    const token = seller.getJwtToken()
+    const token = seller.getJwtToken();
 
     res.status(200).json({
       success: true,
       seller,
       token, // Include token in response for localStorage backup
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 // logout from shop
 export const logout = catchAsyncErrors(async (req, res, next) => {
@@ -215,7 +222,6 @@ export const logout = catchAsyncErrors(async (req, res, next) => {
       secure: process.env.NODE_ENV === "production", // Only secure in production
       path: "/", // Ensure the cookie path matches
     }
-
     // Clear the seller_token cookie
     res.cookie("seller_token", null, options)
 
@@ -230,33 +236,38 @@ export const logout = catchAsyncErrors(async (req, res, next) => {
   }
 })
 
+
+
+
 // get shop info
 export const getShopInfo = catchAsyncErrors(async (req, res, next) => {
   try {
-    const shop = await shopModel.findById(req.params.id)
+    const shop = await shopModel.findById(req.params.id);
     res.status(201).json({
       success: true,
       shop,
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 // update shop avatar
 export const updateShopAvatar = catchAsyncErrors(async (req, res, next) => {
   try {
-    const existSeller = await shopModel.findById(req.seller._id)
+    const existSeller = await shopModel.findById(req.seller._id);
+
     if (!existSeller) {
-      return next(new ErrorHandler("User not found!", 404))
+      return next(new ErrorHandler("User not found!", 404));
     }
 
-    const { avatar } = req.body
+    const { avatar } = req.body;
+
     if (!avatar) {
-      return next(new ErrorHandler("Avatar is required", 400))
+      return next(new ErrorHandler("Avatar is required", 400));
     }
 
-    let avatarUrl = existSeller.avatar
+    let avatarUrl = existSeller.avatar;
 
     // Handle avatar upload to Cloudinary
     if (avatar && isCloudinaryConfigured()) {
@@ -266,102 +277,106 @@ export const updateShopAvatar = catchAsyncErrors(async (req, res, next) => {
           resource_type: "auto",
           quality: "auto",
           fetch_format: "auto",
-        })
-        avatarUrl = result.secure_url
+        });
+        avatarUrl = result.secure_url;
       } catch (uploadError) {
-        console.error("Cloudinary upload error:", uploadError)
-        return next(new ErrorHandler("Failed to upload avatar", 500))
+        console.error("Cloudinary upload error:", uploadError);
+        return next(new ErrorHandler("Failed to upload avatar", 500));
       }
     }
 
-    existSeller.avatar = avatarUrl
-    await existSeller.save()
+    existSeller.avatar = avatarUrl;
+    await existSeller.save();
 
     res.status(200).json({
       success: true,
       seller: existSeller,
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 // update seller info
 export const updateSellerInfo = catchAsyncErrors(async (req, res, next) => {
   try {
-    const { name, description, address, phoneNumber, zipCode } = req.body
+    const { name, description, address, phoneNumber, zipCode } = req.body;
 
-    const shop = await shopModel.findById(req.seller._id)
+    const shop = await shopModel.findOne(req.seller._id);
 
     if (!shop) {
-      return next(new ErrorHandler("User not found", 400))
+      return next(new ErrorHandler("User not found", 400));
     }
 
-    shop.name = name
-    shop.description = description
-    shop.address = address
-    shop.phoneNumber = phoneNumber
-    shop.zipCode = zipCode
+    shop.name = name;
+    shop.description = description;
+    shop.address = address;
+    shop.phoneNumber = phoneNumber;
+    shop.zipCode = zipCode;
 
-    await shop.save()
+    await shop.save();
 
     res.status(201).json({
       success: true,
       shop,
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
-// Admin Functionality
+
+
+// Admibn Functionality
+
 // Get all sellers (Admin)
 export const getAllSellers = catchAsyncErrors(async (req, res, next) => {
   try {
     const sellers = await shopModel.find().sort({
       createdAt: -1,
-    })
+    });
     res.status(200).json({
       success: true,
       sellers,
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 // Delete seller (Admin)
 export const deleteSeller = catchAsyncErrors(async (req, res, next) => {
   try {
-    const seller = await shopModel.findById(req.params.id)
-
+    const seller = await shopModel.findById(req.params.id);
     if (!seller) {
-      return next(new ErrorHandler(`Seller not available with id: ${req.params.id}!`, 400))
+      return next(
+        new ErrorHandler(`Seller not available with id: ${req.params.id}!`, 400)
+      );
     }
-
-    await shopModel.findByIdAndDelete(req.params.id)
-
+    await shopModel.findByIdAndDelete(req.params.id);
     res.status(200).json({
       success: true,
       message: "Seller deleted successfully!",
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
 
 // Update seller payment methods
 export const updatePaymentMethods = catchAsyncErrors(async (req, res, next) => {
   try {
-    const { withdrawMethod } = req.body
-
-    const seller = await shopModel.findByIdAndUpdate(req.seller._id, { withdrawMethod }, { new: true })
-
+    const { withdrawMethod } = req.body;
+    const seller = await shopModel.findByIdAndUpdate(
+      req.seller._id,
+      { withdrawMethod },
+      { new: true }
+    );
     res.status(201).json({
       success: true,
       seller,
-    })
+    });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 500))
+    return next(new ErrorHandler(error.message, 500));
   }
-})
+});
